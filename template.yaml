@@ -144,7 +144,7 @@ Resources:
       Action: lambda:InvokeFunction
       FunctionName: !GetAtt Function.Arn
       Principal: sns.amazonaws.com
-      SourceArn: !Ref AccountsEventsTopic
+      SourceArn: !Ref AccountEventsTopic
 
 Outputs:
   Endpoint:
