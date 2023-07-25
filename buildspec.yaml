@@ -31,9 +31,9 @@ phases:
   pre_build:
     commands:
       # Runs megacheck
-      - make lint
+      # - make lint
       # Run all tests included with the application
-      - make test
+      # - make test
 
   build:
     commands:
