@@ -87,7 +87,6 @@ Resources:
   Function:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: .
       Handler: main
       Timeout: 180
       MemorySize: 512
@@ -110,7 +109,6 @@ Resources:
   ConsumerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: .
       Handler: main-consumer-lambda
       Timeout: 600
       MemorySize: 2048
