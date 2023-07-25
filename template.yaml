@@ -1,6 +1,4 @@
----
-AWSTemplateFormatVersion: 2010-09-09
-
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 
 Globals:
@@ -128,19 +126,13 @@ Resources:
       Policies:
         - SNSPublishMessagePolicy:
             TopicName: !GetAtt AccountEventsTopic.TopicName
-        # - Statement:
-        #     - Sid: KMSPermissionsForSQS
-        #       Effect: Allow
-        #       Action:
-        #         - kms:Decrypt*
-        #       Resource: !ImportValue rrs-sqs-encryption-key-arn
 
     # Lambda Permission to SQS
   LambdaSQSPermission:
     Type: AWS::Lambda::Permission
     Properties:
       Action: lambda:InvokeFunction
-      FunctionName: !GetAtt ConsumerLambda.Arn
+      FunctionName: !GetAtt ConsumerFunction.Arn
       Principal: sqs.amazonaws.com
       SourceArn: !GetAtt AccountsQueue.Arn
       #
