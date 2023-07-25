@@ -143,6 +143,7 @@ Resources:
       FunctionName: !GetAtt ConsumerLambda.Arn
       Principal: sqs.amazonaws.com
       SourceArn: !GetAtt AccountsQueue.Arn
+      #
 
   # Lambda Permission to SNS
   LambdaSNSPermission:
