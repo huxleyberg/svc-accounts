@@ -1,0 +1,40 @@
+openapi: 3.0.0
+info:
+  description: APIs for interacting with Lambda SNS and SQS
+  version: 1.0.0
+  title: Rent Reporting Accounts Service
+x-amazon-apigateway-policy:
+  Version: "2012-10-17"
+  Statement:
+    - Effect: Allow
+      Principal: "*"
+      Action: execute-api:Invoke
+      Resource:
+        - execute-api:/*
+paths:
+  /init:
+    post:
+      summary: Init
+      description: send message from sns to sqs
+      operationId: init
+      responses:
+        "204":
+          description: mesages were created successfully
+        "500":
+          $ref: "#/components/responses/InteralServerError"
+
+      x-amazon-apigateway-integration:
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${Function.Arn}/invocations
+        httpMethod: POST
+        passthroughBehavior: when_no_match
+        type: aws_proxy
+
+components:
+  responses:
+    InteralServerError:
+      description: Server Error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ServerError"

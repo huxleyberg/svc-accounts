@@ -1,0 +1,52 @@
+---
+version: 0.2
+
+# These variables must be provided via CloudFormation:
+# S3_BUCKET: Will be set to DeploymentBucket
+env:
+  variables:
+    GO111MODULE: "on"
+    # PACKAGE: "github.com/aws-samples/lambda-go-samples"
+  # parameter-store:
+  #   GITHUB_USERNAME: Github-Username
+  #   GITHUB_PASSWORD: Github-Password
+
+phases:
+  install:
+    runtime-versions:
+      golang: 1.13
+
+    commands:
+      # Debugging
+      - env | sort
+      # Set git credentials
+      # - git config --global credential.helper 'store' --replace-all
+      # - echo "https://$GITHUB_USERNAME:$GITHUB_PASSWORD@github.com" > ~/.git-credentials
+      # Debugging
+      - pwd
+      - find .
+      # Install CI dependencies
+      - make install
+
+  pre_build:
+    commands:
+      # Runs megacheck
+      - make lint
+      # Run all tests included with the application
+      - make test
+
+  build:
+    commands:
+      # Build the go application
+      - make build
+      # Package the application with AWS SAM using $S3_BUCKET
+      - make package
+
+artifacts:
+  files:
+    - main
+    - main-consumer-lambda
+    - dev-configuration.json
+    - stage-configuration.json
+    - prod-configuration.json
+    - packaged.yaml

@@ -1,0 +1,184 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+Transform: AWS::Serverless-2016-10-31
+
+Globals:
+  Api:
+    OpenApiVersion: 3.0.1
+
+Parameters:
+  Stage:
+    Type: String
+    Default: test
+
+  ServiceName:
+    Type: String
+    Default: svc-accounts
+
+  ArtifactStore:
+    Description: S3 Bucket, which will hold the artifacts and open api specs
+    Type: String
+    Default: lambda-resources-huxleyberg
+
+Resources:
+  AccountEventsTopic:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      TopicName: !Sub account-events-${Stage}
+
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Stage
+      EndpointConfiguration: REGIONAL
+      DefinitionBody:
+        "Fn::Transform":
+          Name: AWS::Include
+          Parameters:
+            Location: !Sub s3://${ArtifactStore}/open-api/${ServiceName}/open-api-integrated.yaml
+      MethodSettings:
+        - HttpMethod: "*"
+          LoggingLevel: INFO
+          ResourcePath: "/*"
+          MetricsEnabled: true
+          DataTraceEnabled: true
+
+  AccountsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${ServiceName}
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+            - "AccountsDeadLetterQueue"
+            - "Arn"
+        maxReceiveCount: 1
+      VisibilityTimeout: 4000
+      # KmsMasterKeyId: alias/rrs-sqs-encryption-key
+
+  AccountsDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${ServiceName}-dlq
+      # KmsMasterKeyId: alias/rrs-sqs-encryption-key
+
+  AccountsQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref AccountsQueue
+      PolicyDocument:
+        Statement:
+          Effect: Allow
+          Principal: "*"
+          Action: "sqs:*"
+          Resource: "*"
+          Condition:
+            ArnEquals:
+              "aws:SourceArn": !Ref AccountEventsTopic
+
+  AccountsQueueToSnsSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: !GetAtt AccountsQueue.Arn
+      Protocol: sqs
+      RawMessageDelivery: true
+      TopicArn: !Ref AccountEventsTopic
+
+  Function:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: main
+      Timeout: 180
+      MemorySize: 512
+      Runtime: go1.x
+      FunctionName: !Sub ${ServiceName}-${Stage}
+      Environment:
+        Variables:
+          ACCOUNTS_CREATED_SNS_TOPIC: !Ref AccountEventsTopic
+      Policies:
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt AccountEventsTopic.TopicName
+      Events:
+        Init:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /init
+            Method: post
+
+  ConsumerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: main-consumer-lambda
+      Timeout: 600
+      MemorySize: 2048
+      Runtime: go1.x
+      FunctionName: !Sub ${ServiceName}-consumer-${Stage}
+      Environment:
+        Variables:
+          ACCOUNTS_CREATED_SNS_TOPIC: !Ref AccountEventsTopic
+      Events:
+        SqsJobQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt AccountsQueue.Arn
+            BatchSize: 1
+      Policies:
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt AccountEventsTopic.TopicName
+        # - Statement:
+        #     - Sid: KMSPermissionsForSQS
+        #       Effect: Allow
+        #       Action:
+        #         - kms:Decrypt*
+        #       Resource: !ImportValue rrs-sqs-encryption-key-arn
+
+    # Lambda Permission to SQS
+  LambdaSQSPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt ConsumerLambda.Arn
+      Principal: sqs.amazonaws.com
+      SourceArn: !GetAtt AccountsQueue.Arn
+
+  # Lambda Permission to SNS
+  LambdaSNSPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt Function.Arn
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref AccountsEventsTopic
+
+Outputs:
+  Endpoint:
+    Description: Api endpoint for the svc accounts
+    Value: !Sub https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/
+    Export:
+      Name: !Sub ${ServiceName}-endpoint
+  FunctionName:
+    Description: Service Function Name
+    Value: !Sub ${ServiceName}-${Stage}
+    Export:
+      Name: !Sub ${ServiceName}-name
+  FunctionArn:
+    Description: Service Function ARN
+    Value: !GetAtt Function.Arn
+    Export:
+      Name: !Sub ${ServiceName}-arn
+  AccountsEventsSNSTopic:
+    Value: !Ref AccountEventsTopic
+    Export:
+      Name: accounts-created
+  AccountsSnsTopicName:
+    Value: !GetAtt AccountEventsTopic.TopicName
+    Export:
+      Name: svc-accounts-events-name
+  AccountsConsumerLambda:
+    Description: Accounts Consumer Lambda
+    Value: !Ref ConsumerFunction
+    Export:
+      Name: svc-accounts-consumer
