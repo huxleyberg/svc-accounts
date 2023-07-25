@@ -34,7 +34,7 @@ lint: install
 	# megacheck -go $(VERSION)
 	golint -set_exit_status
 
-main: ./cmd/$(SERVICE_NAME)-lambda/main.go
+main: ./cmd/$(SERVICE_NAME)-publisher-lambda/main.go
 	go build -o $(OUTPUT) ./cmd/$(SERVICE_NAME)-publisher-lambda/main.go
 	go build -o $(OUTPUT_CONSUMER) ./cmd/$(SERVICE_NAME)-consumer-lambda/main.go
 
