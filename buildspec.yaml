@@ -9,7 +9,7 @@ env:
     # PACKAGE: "github.com/aws-samples/lambda-go-samples"
   # parameter-store:
   #   GITHUB_USERNAME: Github-Username
-  #   GITHUB_PASSWORD: Github-Password
+  #   GITHUB_PASSWORD: Github-Password **remove
 
 phases:
   install:
