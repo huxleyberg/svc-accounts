@@ -1,4 +1,3 @@
----
 version: 0.2
 
 # These variables must be provided via CloudFormation:
