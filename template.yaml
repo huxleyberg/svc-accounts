@@ -134,7 +134,6 @@ Resources:
         #       Action:
         #         - kms:Decrypt*
         #       Resource: !ImportValue rrs-sqs-encryption-key-arn
-        #
 
     # Lambda Permission to SQS
   LambdaSQSPermission:
